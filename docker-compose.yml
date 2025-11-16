@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  user_service:
+    build: ./user_service
+    ports:
+      - "8001:80"
+    environment:
+      - JWT_SECRET_KEY=your-super-secret-jwt-key-here-make-it-very-long-and-secure
+      - JWT_ALGORITHM=HS256
+
+  delivery_service:
+    build: ./delivery_service
+    ports:
+      - "8002:80"
+    environment:
+      - AMQP_URL=amqp://guest:guest123@51.250.26.59:5672/
+      - POSTGRES_URL=postgresql://user:password@delivery_db:5432/delivery_db
+      - JWT_SECRET_KEY=your-super-secret-jwt-key-here-make-it-very-long-and-secure
+      - JWT_ALGORITHM=HS256
+    depends_on:
+      delivery_db:
+        condition: service_healthy
+    restart: on-failure
+
+  delivery_db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=delivery_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d delivery_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres_data:
